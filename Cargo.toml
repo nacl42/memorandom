@@ -3,6 +3,10 @@ name = "memorandom"
 version = "0.1.0"
 edition = "2021"
 
+repository = "https://github.com/nacl42/memorandom"
+
+default-bin = "mr"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
