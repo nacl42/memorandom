@@ -1,5 +1,9 @@
 use std::{iter::Peekable, str::Chars};
 
+// TODO: Return ParseError, not Option
+// TODO: ParseResult::Blank
+// TODO: Parse separator char  (comma or semicolon or [sep]) => Data { key, value, sep: Option<&'a str>}
+
 #[derive(Eq, PartialEq, Debug)]
 pub enum ParseResult<'a> {
     Header {
@@ -12,13 +16,19 @@ pub enum ParseResult<'a> {
     },
     Value {
         value: Option<&'a str>,
-    }
+    },
+    Comment {
+        comment: Option<&'a str>,
+    },
+    Other {
+        text: Option<&'a str>
+    },
 }
 
 pub struct Cursor<'a> {
     input: &'a str,
-    offset: usize,
     iter: Peekable<Chars<'a>>,
+    offset: usize,
     mark: usize,
 }
 
@@ -26,8 +36,8 @@ impl<'a> From<&'a str> for Cursor<'a> {
     fn from(input: &'a str) -> Self {
         Cursor {
             input,
-            offset: 0,
             iter: input.chars().peekable(),
+            offset: 0,
             mark: 0,
         }
     }
@@ -80,7 +90,7 @@ impl<'a> Cursor<'a> {
         self.mark = self.offset;
     }
 
-    pub fn moved(&mut self) -> bool {
+    pub fn has_moved(&mut self) -> bool {
         self.offset > self.mark
     }
 
@@ -109,7 +119,7 @@ where
             // required schema name
             cursor.mark();
             cursor.pop_while(|ch| !ch.is_whitespace());
-            if !cursor.moved() {
+            if !cursor.has_moved() {
                 return None; // TODO: ParseError::HeaderIndicatorWithoutSchema
             }
             let schema = &cursor.marked_input().unwrap(); // TODO: Return error
@@ -126,7 +136,7 @@ where
             // required key name
             cursor.mark();
             cursor.pop_while(|ch| !ch.is_whitespace());
-            if !cursor.moved() {
+            if !cursor.has_moved() {
                 return None; // TODO: ParseError: DataIndicatorWithoutKey
             }
             let key = &cursor.marked_input().unwrap(); // TODO: Return error
@@ -142,6 +152,15 @@ where
         Some(' ') => {
             let value = cursor.rest_of_line();
             Some(ParseResult::Value { value })
+        },
+        Some('#') => {
+            let comment = cursor.rest_of_line();
+            Some(ParseResult::Comment { comment })
+        }
+        Some(_) => {
+            cursor.rewind();
+            let text = cursor.rest_of_line();
+            Some(ParseResult::Other { text} )
         }
         _ => None,
     }
@@ -248,6 +267,50 @@ mod test_parser {
                 " When Mr. Bilbo Baggins of Bag End...",
                 Some(ParseResult::Value {
                     value: Some("When Mr. Bilbo Baggins of Bag End...")
+                }),
+            ),
+        ];
+
+        for (input, expected) in test_cases.iter() {
+            assert_eq!(parse_line(*input), *expected);
+        }
+    }
+
+    #[test]
+    fn test_parse_comment_line() {
+        let test_cases = [
+            (
+                "#",
+                Some(ParseResult::Comment {
+                    comment: None,
+                }),
+            ),
+            (
+                "# foo",
+                Some(ParseResult::Comment {
+                    comment: Some(" foo"),
+                }),
+            ),
+        ];
+
+        for (input, expected) in test_cases.iter() {
+            assert_eq!(parse_line(*input), *expected);
+        }
+    }
+
+    #[test]
+    fn test_parse_other_Line() {
+        let test_cases = [
+            (
+                "-",
+                Some(ParseResult::Other {
+                    text: Some("-")
+                }),
+            ),
+            (
+                "foo bar",
+                Some(ParseResult::Other {
+                    text: Some("foo bar"),
                 }),
             ),
         ];
