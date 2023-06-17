@@ -1,18 +1,21 @@
+use std::{fmt::{Display, Formatter}};
+
 use multimap::MultiMap;
 
 pub type Key = String;
 pub type Value = String;
 
-// TODO: insert_vec
+// TODO: insert_vec (DONE)
 // TODO: count all elements
 // TODO: attributes
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Memo {
-    collection: Key,
-    title: Value,
-    data: MultiMap<Key, Value>,
+    collection: Key,            // a schema
+    title: Value,               // an id
+    data: MultiMap<Key, Value>, // the actual information
 }
+
 
 impl Memo {
     pub fn new<K, V>(collection: K, title: V) -> Self
@@ -32,16 +35,17 @@ impl Memo {
         K: Into<Key>,
         V: Into<Value>,
     {
-        self.data.insert(key.into(), value.into());
+        self.data.insert(key.into(), value.into()); // TODO: TBR
     }
 
-    pub fn insert_many<K, V, I>(&mut self, key: K, values: I) 
+    pub fn insert_many<K, V, I>(&mut self, key: K, values: I)
     where
-    K: Into<Key>,
-    V: Into<Value>,
-    I: IntoIterator<Item=V>
+        K: Into<Key>,
+        V: Into<Value>,
+        I: IntoIterator<Item = V>,
     {
-        self.data.insert_many(key.into(), values.into_iter().map(V::into));
+        self.data
+            .insert_many(key.into(), values.into_iter().map(V::into));       
     }
 
     pub fn with<K, V>(mut self, key: K, value: V) -> Self
@@ -61,6 +65,18 @@ impl Memo {
     {
         self.insert_many(key, values);
         self
+    }
+}
+
+impl Display for Memo {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        writeln!(f, "@{} {}", self.collection, self.title)?;
+        for (key, values) in self.data.iter_all() {
+           for value in values {
+            writeln!(f, ".{} {}", key, value)?;
+           }
+        }
+        Ok(())
     }
 }
 
