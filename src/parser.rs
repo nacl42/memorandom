@@ -1,11 +1,16 @@
 use std::{iter::Peekable, str::Chars};
 
-// TODO: Return ParseError, not Option
+// Design decision for this first implementation: linewise parsing with result item for the read line.
+// In other words, the input stream is not separated into different tokens.
+
+// TODO: read_memo: construct real memo from text lines!
+// TODO: proper error output
 // TODO: ParseResult::Blank
-// TODO: Parse separator char  (comma or semicolon or [sep]) => Data { key, value, sep: Option<&'a str>}
+// TODO: Parse value separator char  (comma or semicolon or [sep]) => Data { key, value, sep: Option<&'a str>}
+// .color, blue, green, red
 
 #[derive(Eq, PartialEq, Debug)]
-pub enum ParseResult<'a> {
+pub enum LineData<'a> {
     Header {
         schema: &'a str,
         id: Option<&'a str>,
@@ -21,9 +26,18 @@ pub enum ParseResult<'a> {
         comment: Option<&'a str>,
     },
     Other {
-        text: Option<&'a str>
+        text: Option<&'a str>,
     },
 }
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum ParseError {
+    ExpectedHeaderSchema,
+    ExpectedDataField,
+    NotImplemented,
+}
+
+pub type ParseResult<'a> = Result<LineData<'a>, ParseError>;
 
 pub struct Cursor<'a> {
     input: &'a str,
@@ -50,9 +64,7 @@ impl<'a> Cursor<'a> {
                 self.offset += ch.len_utf8();
                 Some(ch)
             }
-            None => {
-                None
-            }
+            None => None,
         }
     }
 
@@ -99,7 +111,7 @@ impl<'a> Cursor<'a> {
         self.iter = self.input[..].chars().peekable();
     }
 
-    pub fn marked_input(&mut self) -> Option<&'a str> {        
+    pub fn marked_input(&mut self) -> Option<&'a str> {
         if self.offset > self.mark {
             Some(&self.input[self.mark..self.offset])
         } else {
@@ -108,7 +120,7 @@ impl<'a> Cursor<'a> {
     }
 }
 
-pub fn parse_line<'a, C>(cursor: C) -> Option<ParseResult<'a>>
+pub fn parse_line<'a, C>(cursor: C) -> ParseResult<'a>
 where
     C: Into<Cursor<'a>>,
 {
@@ -119,10 +131,9 @@ where
             // required schema name
             cursor.mark();
             cursor.pop_while(|ch| !ch.is_whitespace());
-            if !cursor.has_moved() {
-                return None; // TODO: ParseError::HeaderIndicatorWithoutSchema
-            }
-            let schema = &cursor.marked_input().unwrap(); // TODO: Return error
+            let schema = &cursor
+                .marked_input()
+                .ok_or(ParseError::ExpectedHeaderSchema)?;
 
             // skip whitespace
             cursor.pop_while(char::is_whitespace);
@@ -130,39 +141,35 @@ where
             // optional id
             let id = cursor.rest_of_line().map(str::trim);
 
-            Some(ParseResult::Header { schema, id })
+            Ok(LineData::Header { schema, id })
         }
         Some('.') => {
             // required key name
             cursor.mark();
             cursor.pop_while(|ch| !ch.is_whitespace());
-            if !cursor.has_moved() {
-                return None; // TODO: ParseError: DataIndicatorWithoutKey
-            }
-            let key = &cursor.marked_input().unwrap(); // TODO: Return error
+            let key = &cursor.marked_input().ok_or(ParseError::ExpectedDataField)?;
 
             // skip whitespace
             cursor.pop_while(char::is_whitespace);
 
             // optional value
             let value = cursor.rest_of_line(); // value is NOT trimmed
-            Some(ParseResult::Data { key, value })
-
-        },
+            Ok(LineData::Data { key, value })
+        }
         Some(' ') => {
             let value = cursor.rest_of_line();
-            Some(ParseResult::Value { value })
-        },
+            Ok(LineData::Value { value })
+        }
         Some('#') => {
             let comment = cursor.rest_of_line();
-            Some(ParseResult::Comment { comment })
+            Ok(LineData::Comment { comment })
         }
         Some(_) => {
             cursor.rewind();
             let text = cursor.rest_of_line();
-            Some(ParseResult::Other { text} )
+            Ok(LineData::Other { text })
         }
-        _ => None,
+        _ => Err(ParseError::NotImplemented),
     }
 }
 
@@ -173,31 +180,31 @@ mod test_parser {
     #[test]
     fn test_parse_header_line() {
         let test_cases = [
-            ("@", None),
+            ("@", Err(ParseError::ExpectedHeaderSchema)),
             (
                 "@book",
-                Some(ParseResult::Header {
+                Ok(LineData::Header {
                     schema: "book",
                     id: None,
                 }),
             ),
             (
                 "@book    ",
-                Some(ParseResult::Header {
+                Ok(LineData::Header {
                     schema: "book",
                     id: None,
                 }),
             ),
             (
                 "@book The Lord of the Rings",
-                Some(ParseResult::Header {
+                Ok(LineData::Header {
                     schema: "book",
                     id: Some("The Lord of the Rings"),
                 }),
             ),
             (
-                "@book The Lord of the Rings    ",   // trim trailing spaces for header id
-                Some(ParseResult::Header {
+                "@book The Lord of the Rings    ", // trim trailing spaces for header id
+                Ok(LineData::Header {
                     schema: "book",
                     id: Some("The Lord of the Rings"),
                 }),
@@ -212,31 +219,31 @@ mod test_parser {
     #[test]
     fn test_parse_data_line() {
         let test_cases = [
-            (".", None),
+            (".", Err(ParseError::ExpectedDataField)),
             (
                 ".author",
-                Some(ParseResult::Data {
+                Ok(LineData::Data {
                     key: "author",
                     value: None,
                 }),
             ),
             (
                 ".author   ",
-                Some(ParseResult::Data {
+                Ok(LineData::Data {
                     key: "author",
                     value: None,
                 }),
             ),
             (
                 ".author J.R.R. Tolkien",
-                Some(ParseResult::Data {
+                Ok(LineData::Data {
                     key: "author",
                     value: Some("J.R.R. Tolkien"),
                 }),
             ),
             (
                 ".author J.R.R. Tolkien   ", // keep trailing space for values
-                Some(ParseResult::Data {
+                Ok(LineData::Data {
                     key: "author",
                     value: Some("J.R.R. Tolkien   "),
                 }),
@@ -251,22 +258,12 @@ mod test_parser {
     #[test]
     fn test_parse_value_line() {
         let test_cases = [
-            (
-                " ",
-                Some(ParseResult::Value {
-                    value: None,
-                }),
-            ),
-            (
-                "   ",
-                Some(ParseResult::Value {
-                    value: Some("  "),
-                }),
-            ),
+            (" ", Ok(LineData::Value { value: None })),
+            ("   ", Ok(LineData::Value { value: Some("  ") })),
             (
                 " When Mr. Bilbo Baggins of Bag End...",
-                Some(ParseResult::Value {
-                    value: Some("When Mr. Bilbo Baggins of Bag End...")
+                Ok(LineData::Value {
+                    value: Some("When Mr. Bilbo Baggins of Bag End..."),
                 }),
             ),
         ];
@@ -279,15 +276,10 @@ mod test_parser {
     #[test]
     fn test_parse_comment_line() {
         let test_cases = [
-            (
-                "#",
-                Some(ParseResult::Comment {
-                    comment: None,
-                }),
-            ),
+            ("#", Ok(LineData::Comment { comment: None })),
             (
                 "# foo",
-                Some(ParseResult::Comment {
+                Ok(LineData::Comment {
                     comment: Some(" foo"),
                 }),
             ),
@@ -299,17 +291,12 @@ mod test_parser {
     }
 
     #[test]
-    fn test_parse_other_Line() {
+    fn test_parse_other_line() {
         let test_cases = [
-            (
-                "-",
-                Some(ParseResult::Other {
-                    text: Some("-")
-                }),
-            ),
+            ("-", Ok(LineData::Other { text: Some("-") })),
             (
                 "foo bar",
-                Some(ParseResult::Other {
+                Ok(LineData::Other {
                     text: Some("foo bar"),
                 }),
             ),
@@ -319,5 +306,4 @@ mod test_parser {
             assert_eq!(parse_line(*input), *expected);
         }
     }
-
 }

@@ -10,5 +10,5 @@ fn main() {
 
     println!("{}", memo);
 
-    parse_line("@foo   aa");
+    let _ = parse_line("@foo   aa");
 }
