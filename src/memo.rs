@@ -1,4 +1,4 @@
-use std::{fmt::{Display, Formatter}};
+use std::fmt::{Display, Formatter};
 
 use multimap::MultiMap;
 
@@ -15,7 +15,6 @@ pub struct Memo {
     title: Value,               // an id
     data: MultiMap<Key, Value>, // the actual information
 }
-
 
 impl Memo {
     pub fn new<K, V>(collection: K, title: V) -> Self
@@ -45,7 +44,7 @@ impl Memo {
         I: IntoIterator<Item = V>,
     {
         self.data
-            .insert_many(key.into(), values.into_iter().map(V::into));       
+            .insert_many(key.into(), values.into_iter().map(V::into));
     }
 
     pub fn with<K, V>(mut self, key: K, value: V) -> Self
@@ -72,16 +71,16 @@ impl Display for Memo {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         writeln!(f, "@{} {}", self.collection, self.title)?;
         for (key, values) in self.data.iter_all() {
-           for value in values {
-            writeln!(f, ".{} {}", key, value)?;
-           }
+            for value in values {
+                writeln!(f, ".{} {}", key, value)?;
+            }
         }
         Ok(())
     }
 }
 
 #[cfg(test)]
-mod tests {
+mod test_memo {
     use super::*;
 
     #[test]
@@ -118,3 +117,4 @@ mod tests {
         );
     }
 }
+

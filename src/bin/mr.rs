@@ -1,4 +1,4 @@
-use memorandom::Memo;
+use memorandom:: {Memo, parse_line};
 
 fn main() {
     let memo = Memo::new("book", "The Lord of the Rings")
@@ -9,4 +9,6 @@ fn main() {
         .with_many("genre", ["high fantasy", "adventure"]);
 
     println!("{}", memo);
+
+    parse_line("@foo   aa");
 }
