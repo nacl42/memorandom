@@ -7,6 +7,7 @@ const RECIPE: &str = r"
 .ingredient tomatoes
 .ingredient, oregano, basil
 .ingredient; salt; pepper
+ patience; whatever
 .ingredient olive oil
 .howto
  put the spaghetti into a pot of salted, boiling water,

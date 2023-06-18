@@ -3,21 +3,18 @@ use crate::{cursor::Cursor, Memo};
 // Design decision for this first implementation: linewise parsing with result item for the read line.
 // In other words, the input stream is not separated into different tokens.
 
+// TODO: multi-line handling: folded (default) vs. literal (|) vs. one value = one line (*)
+
+// TODO: new field, same as before
+// .color, red, blue
+//  green, yellow
+
+
 // TODO: proper error output
 
 // TODO: how could we include attributes? |:qty 1
 //  maybe use :attribute and +more text and if you do not like +, then use <<EOF notation
-// TODO: how to join values separated on multiple lines?
-//   YAML: | => keep newlines as newline,  > => replace newlines by spaces, 
-// .instructions>
-//  do whatever is necessary
-//  go on
-//  whatever
-// .next point
-// But | is not really a simple character! On the other hand, it is similar to YAML
-// .instructions<<EOF
-// .foo,>  (everything is joined into a single string, then the values are split by ,) -- could be default!
-// .foo,|  (each line is considered a separate value, with a comma as separator for values in a line)
+
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum LineData<'a> {
@@ -134,7 +131,8 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
                     current_memo.replace(Memo::new(schema, id.unwrap_or_default()))
                 {
                     if let Some(key) = current_key.take() {
-                        let value = current_values.split_off(0).join("").to_string();
+                        let join_str = current_sep.unwrap_or(" ");
+                        let value = current_values.split_off(0).join(join_str).to_string();
                         memo.insert(key, value);
                     };
                     memos.push(memo);
@@ -147,7 +145,8 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
                     return Err(ParseError::ExpectedMemo);
                 };
                 if let Some(key) = current_key.replace(key) {
-                    let value = current_values.split_off(0).join("").to_string();
+                    let join_str = current_sep.unwrap_or(" ");
+                    let value = current_values.split_off(0).join(join_str).to_string();
 
                     match current_sep {
                         None => {
@@ -184,7 +183,8 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
     // add current memo
     if let Some(mut memo) = current_memo.take() {
         if let Some(key) = current_key.take() {
-            let value = current_values.split_off(0).join("").to_string();
+            let join_str = current_sep.unwrap_or(" ");
+            let value = current_values.split_off(0).join(join_str).to_string();
             match current_sep {
                 None => {
                     /* no separator => just a single value */
