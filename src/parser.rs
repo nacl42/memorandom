@@ -3,11 +3,21 @@ use crate::{cursor::Cursor, Memo};
 // Design decision for this first implementation: linewise parsing with result item for the read line.
 // In other words, the input stream is not separated into different tokens.
 
-// TODO: read_memo: construct real memo from text lines!
 // TODO: proper error output
-// TODO: ParseResult::Blank
-// TODO: Parse value separator char  (comma or semicolon or [sep]) => Data { key, value, sep: Option<&'a str>}
-// .color, blue, green, red
+
+// TODO: how could we include attributes? |:qty 1
+//  maybe use :attribute and +more text and if you do not like +, then use <<EOF notation
+// TODO: how to join values separated on multiple lines?
+//   YAML: | => keep newlines as newline,  > => replace newlines by spaces, 
+// .instructions>
+//  do whatever is necessary
+//  go on
+//  whatever
+// .next point
+// But | is not really a simple character! On the other hand, it is similar to YAML
+// .instructions<<EOF
+// .foo,>  (everything is joined into a single string, then the values are split by ,) -- could be default!
+// .foo,|  (each line is considered a separate value, with a comma as separator for values in a line)
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum LineData<'a> {
@@ -18,6 +28,7 @@ pub enum LineData<'a> {
     Data {
         key: &'a str,
         value: Option<&'a str>,
+        sep: Option<&'a str>,
     },
     Value {
         value: Option<&'a str>,
@@ -40,6 +51,7 @@ pub enum ParseError {
     ExpectedHeaderSchema,
     ExpectedDataField,
     NotImplemented,
+    InvalidKeyChar,
 }
 
 pub fn parse_line<'a, C>(cursor: C) -> Result<LineData<'a>, ParseError>
@@ -68,15 +80,24 @@ where
         Some('.') => {
             // required key name
             cursor.mark();
-            cursor.pop_while(|ch| !ch.is_whitespace());
+            cursor.pop_while(|ch| ch.is_alphanumeric() || ch == '_' || ch == ':' || ch == '-');
             let key = &cursor.marked_input().ok_or(ParseError::ExpectedDataField)?;
+
+            // optional separator char
+            let sep = match cursor.pop() {
+                Some(x) if x.is_whitespace() => None, // go on
+                Some(',') => Some(","),
+                Some(';') => Some(";"),
+                Some(x) => return Err(ParseError::InvalidKeyChar),
+                None => None, // go on
+            };
 
             // skip whitespace
             cursor.pop_while(char::is_whitespace);
 
             // optional value
             let value = cursor.rest_of_line(); // value is NOT trimmed
-            Ok(LineData::Data { key, value })
+            Ok(LineData::Data { key, value, sep })
         }
         Some(' ') => {
             let value = cursor.rest_of_line();
@@ -101,6 +122,7 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
 
     let mut current_memo: Option<Memo> = None;
     let mut current_key: Option<&'a str> = None;
+    let mut current_sep: Option<&'a str> = None;
     let mut current_values: Vec<&'a str> = vec![];
 
     for line in input.lines() {
@@ -114,22 +136,34 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
                     if let Some(key) = current_key.take() {
                         let value = current_values.split_off(0).join("").to_string();
                         memo.insert(key, value);
-                    }
+                    };
                     memos.push(memo);
                 }
+                current_sep = None;
             }
-            Ok(LineData::Data { key, value }) => {
+            Ok(LineData::Data { key, value, sep }) => {
                 /* start new data field */
                 if current_memo.is_none() {
                     return Err(ParseError::ExpectedMemo);
                 };
                 if let Some(key) = current_key.replace(key) {
                     let value = current_values.split_off(0).join("").to_string();
-                    current_memo.as_mut().map(|m| m.insert(key, value));
+
+                    match current_sep {
+                        None => {
+                            /* no separator => just a single value */
+                            current_memo.as_mut().map(|m| m.insert(key, value));
+                        }
+                        Some(sep) => {
+                            /* separator given => split value into multiple data fields */
+                            current_memo.as_mut().map(|m| for v in value.split(sep) { m.insert(key, v.trim())});
+                        }
+                    }                   
                 };
                 if let Some(value) = value {
                     current_values.push(value);
                 }
+                current_sep = sep; 
             }
             Ok(LineData::Value { value }) => {
                 /* add value */
@@ -151,7 +185,18 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
     if let Some(mut memo) = current_memo.take() {
         if let Some(key) = current_key.take() {
             let value = current_values.split_off(0).join("").to_string();
-            memo.insert(key, value);
+            match current_sep {
+                None => {
+                    /* no separator => just a single value */
+                    memo.insert(key, value);
+                }
+                Some(sep) => {
+                    /* separator given => split value into multiple data fields */
+                    for v in value.split(sep) {
+                        memo.insert(key, v.trim());
+                    }
+                }
+            }
         }
         memos.push(memo);
     }
@@ -211,6 +256,7 @@ mod test_parser {
                 Ok(LineData::Data {
                     key: "author",
                     value: None,
+                    sep: None,
                 }),
             ),
             (
@@ -218,6 +264,7 @@ mod test_parser {
                 Ok(LineData::Data {
                     key: "author",
                     value: None,
+                    sep: None,
                 }),
             ),
             (
@@ -225,6 +272,7 @@ mod test_parser {
                 Ok(LineData::Data {
                     key: "author",
                     value: Some("J.R.R. Tolkien"),
+                    sep: None,
                 }),
             ),
             (
@@ -232,6 +280,7 @@ mod test_parser {
                 Ok(LineData::Data {
                     key: "author",
                     value: Some("J.R.R. Tolkien   "),
+                    sep: None,
                 }),
             ),
         ];

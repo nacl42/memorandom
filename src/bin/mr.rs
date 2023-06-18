@@ -6,7 +6,14 @@ const RECIPE: &str = r"
 .ingredient onion
 .ingredient tomatoes
 .ingredient, oregano, basil
+.ingredient; salt; pepper
 .ingredient olive oil
+.howto
+ put the spaghetti into a pot of salted, boiling water,
+ don't forget to stir from time to time,
+ and so on
+~
+
 ";
 
 fn main() {
