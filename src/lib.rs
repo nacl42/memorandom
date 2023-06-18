@@ -1,3 +1,4 @@
+mod cursor;
 mod memo;
 mod parser;
 
