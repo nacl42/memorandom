@@ -1,5 +1,4 @@
-
-use crate::cursor::Cursor;
+use crate::{cursor::Cursor, Memo};
 
 // Design decision for this first implementation: linewise parsing with result item for the read line.
 // In other words, the input stream is not separated into different tokens.
@@ -29,19 +28,21 @@ pub enum LineData<'a> {
     Other {
         text: Option<&'a str>,
     },
+    Empty,
 }
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ParseError {
+    // parse
+    ExpectedMemo,
+    ExpectedData,
+    // parse_line
     ExpectedHeaderSchema,
     ExpectedDataField,
     NotImplemented,
 }
 
-pub type ParseResult<'a> = Result<LineData<'a>, ParseError>;
-
-
-pub fn parse_line<'a, C>(cursor: C) -> ParseResult<'a>
+pub fn parse_line<'a, C>(cursor: C) -> Result<LineData<'a>, ParseError>
 where
     C: Into<Cursor<'a>>,
 {
@@ -90,8 +91,72 @@ where
             let text = cursor.rest_of_line();
             Ok(LineData::Other { text })
         }
-        _ => Err(ParseError::NotImplemented),
+        None => Ok(LineData::Empty),
     }
+}
+
+// this function can later on be changed to an iterator
+pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
+    let mut memos = vec![];
+
+    let mut current_memo: Option<Memo> = None;
+    let mut current_key: Option<&'a str> = None;
+    let mut current_values: Vec<&'a str> = vec![];
+
+    for line in input.lines() {
+        match parse_line(line) {
+            Ok(LineData::Comment { .. }) => { /* skip comment */ }
+            Ok(LineData::Header { schema, id }) => {
+                /* start new memo */
+                if let Some(mut memo) =
+                    current_memo.replace(Memo::new(schema, id.unwrap_or_default()))
+                {
+                    if let Some(key) = current_key.take() {
+                        let value = current_values.split_off(0).join("").to_string();
+                        memo.insert(key, value);
+                    }
+                    memos.push(memo);
+                }
+            }
+            Ok(LineData::Data { key, value }) => {
+                /* start new data field */
+                if current_memo.is_none() {
+                    return Err(ParseError::ExpectedMemo);
+                };
+                if let Some(key) = current_key.replace(key) {
+                    let value = current_values.split_off(0).join("").to_string();
+                    current_memo.as_mut().map(|m| m.insert(key, value));
+                };
+                if let Some(value) = value {
+                    current_values.push(value);
+                }
+            }
+            Ok(LineData::Value { value }) => {
+                /* add value */
+                current_values.push(value.unwrap_or_default());
+            }
+            Ok(LineData::Other { .. }) => {
+                // TODO: what should we do with this?
+            }
+            Ok(LineData::Empty) => {
+                // ignore
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
+    }
+
+    // add current memo
+    if let Some(mut memo) = current_memo.take() {
+        if let Some(key) = current_key.take() {
+            let value = current_values.split_off(0).join("").to_string();
+            memo.insert(key, value);
+        }
+        memos.push(memo);
+    }
+
+    Ok(memos)
 }
 
 #[cfg(test)]

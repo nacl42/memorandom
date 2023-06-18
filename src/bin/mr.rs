@@ -1,4 +1,13 @@
-use memorandom:: {Memo, parse_line};
+use memorandom:: {Memo, parse_line, parse};
+
+const RECIPE: &str = r"
+@recipe Spaghetti Napoli
+.ingredient spaghetti
+.ingredient onion
+.ingredient tomatoes
+.ingredient, oregano, basil
+.ingredient olive oil
+";
 
 fn main() {
     let memo = Memo::new("book", "The Lord of the Rings")
@@ -10,5 +19,6 @@ fn main() {
 
     println!("{}", memo);
 
-    let _ = parse_line("@foo   aa");
+    let result = parse(RECIPE);
+    println!("{:#?}", result);
 }
