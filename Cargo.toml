@@ -2,6 +2,7 @@
 name = "memorandom"
 version = "0.1.0"
 edition = "2021"
+authors = ["nacl42 <code@nacl42.de>"]
 
 repository = "https://github.com/nacl42/memorandom"
 
