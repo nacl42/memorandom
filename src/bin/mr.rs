@@ -9,10 +9,10 @@ const RECIPE: &str = r"
 .ingredient; salt; pepper
  patience; whatever
 .ingredient olive oil
-.howto
+.howto,
  put the spaghetti into a pot of salted, boiling water,
- don't forget to stir from time to time,
- and so on
+ don't forget to stir from time to time, and
+ so on
 ~
 
 ";

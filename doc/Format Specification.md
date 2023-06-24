@@ -2,24 +2,45 @@
 
 ## Specification
 
+memo header:
+
 ```
 @schema label
-.key1 value
-.key2:qualifier value
-.key3, value1, value2, value3
-.key4 multi-line value
- second line of multi-line value
- third line
-.key5 value
-.key6<<EOF
-another multi-line value
-without indentation
-EOF
 ```
 
-- The **collection**, which corresponds to a database **schema**.
-- The **title**, which corresponds to an **id**.
-- Multiple **data nodes**, each with **key** and **value**.
+single key/value pair:
+```
+.key value
+```
+
+several key/value pairs (multi-value line):
+```
+.key, value1, value2, value3
+.key; value1; value2; value3
+```
+
+multi-line value:
+
+```
+.key>
+ This is a folded multi-line string. The lines
+ are folded. Each new line starts with a
+ single space as indentation.
+.key|
+ This is a literal multi-line string,
+ this is the second line
+ and this is the third.
+```
+
+Abstract definition of a field:
+
+```
+.key[.,>|] value
+```
+
+Indicator char:
+- Multi-Value Line (,) or (;)
+- Multi-Line Value (folded >) or (literal |)
 
 ## Sample Memo
 

@@ -9,12 +9,10 @@ use crate::{cursor::Cursor, Memo};
 // .color, red, blue
 //  green, yellow
 
-
 // TODO: proper error output
 
 // TODO: how could we include attributes? |:qty 1
 //  maybe use :attribute and +more text and if you do not like +, then use <<EOF notation
-
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum LineData<'a> {
@@ -26,6 +24,7 @@ pub enum LineData<'a> {
         key: &'a str,
         value: Option<&'a str>,
         sep: Option<&'a str>,
+        join: Option<&'a str>,
     },
     Value {
         value: Option<&'a str>,
@@ -81,12 +80,14 @@ where
             let key = &cursor.marked_input().ok_or(ParseError::ExpectedDataField)?;
 
             // optional separator char
-            let sep = match cursor.pop() {
-                Some(x) if x.is_whitespace() => None, // go on
-                Some(',') => Some(","),
-                Some(';') => Some(";"),
+            let (sep, join) = match cursor.pop() {
+                Some(',') => (Some(","), None),
+                Some(';') => (Some(";"), None),
+                Some('>') => (None, Some(" ")),
+                Some('|') => (None, Some("\n")),
+                Some(x) if x.is_whitespace() => (None, None),
                 Some(x) => return Err(ParseError::InvalidKeyChar),
-                None => None, // go on
+                None => (None, None), // default case
             };
 
             // skip whitespace
@@ -94,7 +95,7 @@ where
 
             // optional value
             let value = cursor.rest_of_line(); // value is NOT trimmed
-            Ok(LineData::Data { key, value, sep })
+            Ok(LineData::Data { key, value, sep, join })
         }
         Some(' ') => {
             let value = cursor.rest_of_line();
@@ -120,6 +121,7 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
     let mut current_memo: Option<Memo> = None;
     let mut current_key: Option<&'a str> = None;
     let mut current_sep: Option<&'a str> = None;
+    let mut current_join: Option<&'a str> = None;
     let mut current_values: Vec<&'a str> = vec![];
 
     for line in input.lines() {
@@ -138,15 +140,16 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
                     memos.push(memo);
                 }
                 current_sep = None;
+                current_join = None;
             }
-            Ok(LineData::Data { key, value, sep }) => {
+            Ok(LineData::Data { key, value, sep, join }) => {
                 /* start new data field */
                 if current_memo.is_none() {
                     return Err(ParseError::ExpectedMemo);
                 };
                 if let Some(key) = current_key.replace(key) {
-                    let join_str = current_sep.unwrap_or(" ");
-                    let value = current_values.split_off(0).join(join_str).to_string();
+                    let join = join.unwrap_or(" "); // default merge mode
+                    let value = current_values.split_off(0).join(join).to_string();
 
                     match current_sep {
                         None => {
@@ -155,14 +158,19 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
                         }
                         Some(sep) => {
                             /* separator given => split value into multiple data fields */
-                            current_memo.as_mut().map(|m| for v in value.split(sep) { m.insert(key, v.trim())});
+                            current_memo.as_mut().map(|m| {
+                                for v in value.split(sep) {
+                                    m.insert(key, v.trim())
+                                }
+                            });
                         }
-                    }                   
+                    }
                 };
                 if let Some(value) = value {
                     current_values.push(value);
                 }
-                current_sep = sep; 
+                current_sep = sep;
+                current_join = join;
             }
             Ok(LineData::Value { value }) => {
                 /* add value */
@@ -183,8 +191,8 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
     // add current memo
     if let Some(mut memo) = current_memo.take() {
         if let Some(key) = current_key.take() {
-            let join_str = current_sep.unwrap_or(" ");
-            let value = current_values.split_off(0).join(join_str).to_string();
+            let join = current_join.unwrap_or(" "); // default merge char
+            let value = current_values.split_off(0).join(join).to_string();
             match current_sep {
                 None => {
                     /* no separator => just a single value */
@@ -257,6 +265,7 @@ mod test_parser {
                     key: "author",
                     value: None,
                     sep: None,
+                    join: None,
                 }),
             ),
             (
@@ -265,6 +274,7 @@ mod test_parser {
                     key: "author",
                     value: None,
                     sep: None,
+                    join: None,
                 }),
             ),
             (
@@ -273,6 +283,7 @@ mod test_parser {
                     key: "author",
                     value: Some("J.R.R. Tolkien"),
                     sep: None,
+                    join: None,
                 }),
             ),
             (
@@ -281,8 +292,27 @@ mod test_parser {
                     key: "author",
                     value: Some("J.R.R. Tolkien   "),
                     sep: None,
+                    join: None,
                 }),
             ),
+            (
+                ".opening>",
+                Ok(LineData::Data {
+                    key: "opening",
+                    value: None,
+                    sep: None,
+                    join: Some(" "),
+                })
+            ),
+            (
+                ".poem|",
+                Ok(LineData::Data {
+                    key: "poem",
+                    value: None,
+                    sep: None,
+                    join: Some("\n"),
+                })
+            )
         ];
 
         for (input, expected) in test_cases.iter() {

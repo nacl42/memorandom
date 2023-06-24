@@ -5,9 +5,13 @@ use multimap::MultiMap;
 pub type Key = String;
 pub type Value = String;
 
+
 // TODO: insert_vec (DONE)
 // TODO: count all elements
 // TODO: attributes
+
+// TODO: Value could be value with attributes
+
 
 #[derive(Debug, Clone)]
 pub struct Memo {
@@ -34,7 +38,9 @@ impl Memo {
         K: Into<Key>,
         V: Into<Value>,
     {
-        self.data.insert(key.into(), value.into()); // TODO: TBR
+        let key = key.into();
+        let value = value.into();
+        self.data.insert(key.clone(), value.clone()); // TODO: TBR
     }
 
     pub fn insert_many<K, V, I>(&mut self, key: K, values: I)
@@ -43,8 +49,12 @@ impl Memo {
         V: Into<Value>,
         I: IntoIterator<Item = V>,
     {
-        self.data
-            .insert_many(key.into(), values.into_iter().map(V::into));
+        let key = key.into();
+        let values = values.into_iter();
+        
+        self.data  // TODO: TBR
+            .insert_many(key.clone(), values.map(V::into));
+
     }
 
     pub fn with<K, V>(mut self, key: K, value: V) -> Self
