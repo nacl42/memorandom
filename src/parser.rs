@@ -82,7 +82,7 @@ where
             // optional separator char
             let (sep, join) = match cursor.pop() {
                 Some(',') => (Some(","), Some(",")),
-                Some(';') => (Some(";"), Some("\n")),
+                Some(';') => (Some(";"), Some(";")),
                 Some('>') => (None, Some(" ")),
                 Some('|') => (None, Some("\n")),
                 Some('*') => (Some("\n"), Some("\n")),
