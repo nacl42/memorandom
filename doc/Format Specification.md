@@ -14,9 +14,25 @@ single key/value pair:
 ```
 
 several key/value pairs (multi-value line):
+
 ```
+# compact notation using comma as value separator
 .key, value1, value2, value3
+
+# long notation
+.key value1
+.key value2
+.key value3
+```
+
+```
+# compact notation using semicolon as value separator
 .key; value1; value2; value3
+
+# long notation
+.key value1
+.key value2
+.key value3
 ```
 
 multi-line value:
@@ -26,21 +42,74 @@ multi-line value:
  This is a folded multi-line string. The lines
  are folded. Each new line starts with a
  single space as indentation.
+
 .key|
  This is a literal multi-line string,
  this is the second line
  and this is the third.
 ```
 
-Abstract definition of a field:
+Folding is the default:
 
 ```
-.key[.,>|] value
+# this notation:
+.key you can omit
+ the folding indicator if
+ you want
+
+# is equivalent to:
+.key you can omit the folding indicator if you want
+
+# is equivalent to:
+.key you
+ can
+ omit
+ the
+ folding
+ indicator
+ if you want
 ```
 
-Indicator char:
-- Multi-Value Line (,) or (;)
-- Multi-Line Value (folded >) or (literal |)
+It is also possible to treat each line in a multi-line value as separate value:
+
+```
+# the asterisk is the multi-line indicator
+.color*
+ red
+ blue
+ green
+
+# equivalent to:
+.color red
+.color blue
+.color green
+```
+
+If the value separator is specified, then subsequent lines will be treated and split as separate values. The following notations are equivalent:
+
+```
+# verbose notation
+.color red
+.color blue
+.color green
+.color yellow
+
+# compact, single line notation with value separator
+.color, red, blue, green, yellow
+
+# equivalent to
+.color, red, blue
+.color, green, yellow
+
+# equivalent to
+.color,
+ red, blue
+ green, yellow
+
+ # equivalent to
+.color, red, blue
+ green, yellow
+```
 
 ## Sample Memo
 

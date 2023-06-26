@@ -81,10 +81,11 @@ where
 
             // optional separator char
             let (sep, join) = match cursor.pop() {
-                Some(',') => (Some(","), None),
-                Some(';') => (Some(";"), None),
+                Some(',') => (Some(","), Some(",")),
+                Some(';') => (Some(";"), Some("\n")),
                 Some('>') => (None, Some(" ")),
                 Some('|') => (None, Some("\n")),
+                Some('*') => (Some("\n"), Some("\n")),
                 Some(x) if x.is_whitespace() => (None, None),
                 Some(x) => return Err(ParseError::InvalidKeyChar),
                 None => (None, None), // default case
@@ -148,7 +149,7 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
                     return Err(ParseError::ExpectedMemo);
                 };
                 if let Some(key) = current_key.replace(key) {
-                    let join = join.unwrap_or(" "); // default merge mode
+                    let join = current_join.unwrap_or(" "); // default merge mode
                     let value = current_values.split_off(0).join(join).to_string();
 
                     match current_sep {
