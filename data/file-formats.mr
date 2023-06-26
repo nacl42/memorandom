@@ -1,0 +1,64 @@
+# some common file formats
+
+@file-format TOML
+.label Tom's Obvious Minimal Language
+.url <https://toml.io/en/>
+.blurb A config file format for humans
+.doc>
+ TOML aims to be a minimal configuration file format that's easy to read due to
+ obvious semantics. TOML is designed to map unambiguously to a hash table. TOML
+ should be easy to parse into data structures in a wide variety of languages. 
+
+@file-format YAML
+.label YAML Ain't Markup Language
+.url <https://yaml.org/>
+.blurb YAML Ain't Markup Language™
+.doc>
+ YAML is a human-friendly data serialization
+ language for all programming languages.
+
+@file-format JSON
+.url <https://www.json.org/>
+.blurb JSON (JavaScript Object Notation) is a lightweight data-interchange format.
+.sample|
+ {
+    "person": {
+        "@id": "Alice",
+        "name": "Alice",
+        "surname": "Foo"
+    }
+ }
+
+@file-format XML
++update 2023-06-20
+.label extensible markup language
+.url <https://www.w3.org/TR/>
+.doc>
+ What is XML? The Extensible Markup Language (XML) is a simple text-based format
+ for representing structured information: documents, data, configuration, books,
+ transactions, invoices, and much more. It was derived from an older standard
+ format called SGML (ISO 8879), in order to be more suitable for Web use.
+.sample|
+ <person id="Alice">
+    <name>Alice</name>
+    <surname>Foo</surname>
+ </person>
+
+ @file-format CSV
+ .label comma-separated-values
+
+ @file-format Rec
+ .url <https://www.gnu.org/software/recutils/manual/html_node/The-Rec-Format.html>
+ .doc>
+  GNU recutils is a set of tools and libraries to access human-editable,
+  text-based databases called recfiles. The data is stored as a sequence of
+  records, each record containing an arbitrary number of named fields. Advanced
+  capabilities usually found in other data storage systems are supported: data
+  types, data integrity (keys, mandatory fields, etc.) as well as the ability of
+  records to refer to other records (sort of foreign keys). Despite its
+  simplicity, recfiles can be used to store medium-sized databases. 
+ .sample|
+  Title: chapters.gnu.org administration guide
+  Author: Nacho Gonzalez
+  Author: Jose E. Marchesi
+  Location: unknown
