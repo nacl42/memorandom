@@ -13,7 +13,7 @@ pub type Value = String;
 // TODO: Value could be value with attributes
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Memo {
     collection: Key,            // a schema
     title: Value,               // an id

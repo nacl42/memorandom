@@ -19,9 +19,7 @@ const RECIPE: &str = r"
  oregano
 .tested-by,
  Alice, Bob
-
 ~
-
 ";
 
 fn main() {

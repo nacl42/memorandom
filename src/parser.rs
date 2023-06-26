@@ -221,6 +221,8 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
 
 #[cfg(test)]
 mod test_parser {
+    use std::fmt::Result;
+
     use super::*;
 
     #[test]
@@ -377,5 +379,41 @@ mod test_parser {
         for (input, expected) in test_cases.iter() {
             assert_eq!(parse_line(*input), *expected);
         }
+    }
+
+    #[test]
+    fn test_parse_memo() {
+
+        let run_tests = |cases| {
+            let mut last_memo = None;
+            for case in cases {
+                let memo = parse(case);
+                assert!(memo.is_ok());
+                if let Some(last_memo) = last_memo {
+                    assert_eq!(last_memo, memo);
+                };
+                last_memo = Some(memo);
+            }
+        };
+
+        let split_values = vec!(
+            "@case\n.color red\n.color blue\n.color green",
+            "@case\n.color, red, blue, green",
+            "@case\n.color, red, blue\n.color green", 
+            "@case\n.color*\n red\n blue\n green",
+            "@case\n.color; red; blue; green",
+            "@case\n.color; red  ;  blue  ;  green",
+            "@case\n.color, red\n blue\n green",
+            "@case\n.color, red,,\n ,,blue\n green",
+        );
+
+        let join_lines = vec!(
+            "@case\n.doc In a hole in the ground there lived a hobbit.",
+            "@case\n.doc> In a hole\n in the ground\n there lived a hobbit.",
+            "@case\n.doc|\n In a hole in the ground there lived a hobbit.",
+        );
+
+        run_tests(split_values);
+        run_tests(join_lines);
     }
 }
