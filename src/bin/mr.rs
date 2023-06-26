@@ -11,7 +11,7 @@ const RECIPE: &str = r"
 .ingredient olive oil
 .howto,
  put the spaghetti into a pot of salted, boiling water,
- don't forget to stir from time to time, and
+ don't forget to stir from time to time,,, and
  so on
 .ingredient*
  pasta (500g)

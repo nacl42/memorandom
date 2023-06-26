@@ -161,7 +161,10 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
                             /* separator given => split value into multiple data fields */
                             current_memo.as_mut().map(|m| {
                                 for v in value.split(sep) {
-                                    m.insert(key, v.trim())
+                                    let v = v.trim();
+                                    if !v.is_empty() {
+                                        m.insert(key, v);
+                                    }
                                 }
                             });
                         }
@@ -202,7 +205,10 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
                 Some(sep) => {
                     /* separator given => split value into multiple data fields */
                     for v in value.split(sep) {
-                        memo.insert(key, v.trim());
+                        let v = v.trim();
+                        if !v.is_empty() {
+                            memo.insert(key, v);
+                        }
                     }
                 }
             }

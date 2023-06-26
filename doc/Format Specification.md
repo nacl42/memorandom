@@ -35,6 +35,34 @@ several key/value pairs (multi-value line):
 .key value3
 ```
 
+Empty values are skipped:
+
+```
+# multiple values with empty values in between
+.key, value1,,value2,  ,value3
+
+# equivalent to
+.key, value1,value2,value3
+```
+
+If you need to include the comma (,) or the semicolon (;), you should specify the values as separate fields:
+
+```
+# this will not work
+.separator, comma (,), semicolon (;), asterisk (*)
+
+# use this instead
+.separator comma (,)
+.separator semicolon (;)
+.separator asterisk (*)
+
+# or even this notation
+.separator*
+ comma (,)
+ semicolon (;)
+ asterisk (*)
+```
+
 multi-line value:
 
 ```
