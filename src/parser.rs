@@ -1,18 +1,26 @@
+use std::collections::HashMap;
+
 use crate::{cursor::Cursor, Memo};
 
 // Design decision for this first implementation: linewise parsing with result item for the read line.
 // In other words, the input stream is not separated into different tokens.
 
-// TODO: multi-line handling: folded (default) vs. literal (|) vs. one value = one line (*)
+// TODO: Parsing context: current_header_or_value_or_attribute (=current_item)
 
-// TODO: new field, same as before
-// .color, red, blue
-//  green, yellow
+//  This would allow multi-line headings, which are not useful as a reference but might
+//  be useful for memos that do not contain other information.
+//  @memo This
+//   would then be possible
 
-// TODO: proper error output
+// It would also allow parsing attributes for a memo header, which would make the memo header similar to a regular node.
+// @memo my-memo
+// +id 652176c6-8efe-4ecd-b822-c5000aa1f0aa
 
-// TODO: how could we include attributes? |:qty 1
-//  maybe use :attribute and +more text and if you do not like +, then use <<EOF notation
+// .elements, H, Li, Na
+// .elements H, Li, Na
+// +mr:split ,
+// .elements H and Li and Na
+// +mr:split and
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum LineData<'a> {
@@ -20,13 +28,17 @@ pub enum LineData<'a> {
         schema: &'a str,
         id: Option<&'a str>,
     },
-    Data {
+    Node {
         key: &'a str,
         value: Option<&'a str>,
         sep: Option<&'a str>,
         join: Option<&'a str>,
     },
-    Value {
+    Attribute {
+        key: &'a str,
+        value: Option<&'a str>,
+    },
+    Continuation {
         value: Option<&'a str>,
     },
     Comment {
@@ -42,10 +54,11 @@ pub enum LineData<'a> {
 pub enum ParseError {
     // parse
     ExpectedMemo,
-    ExpectedData,
+    ExpectedNode,
     // parse_line
     ExpectedHeaderSchema,
-    ExpectedDataField,
+    ExpectedNodeField,
+    ExpectedAttributeKey,
     NotImplemented,
     InvalidKeyChar,
 }
@@ -77,13 +90,13 @@ where
             // required key name
             cursor.mark();
             cursor.pop_while(|ch| ch.is_alphanumeric() || ch == '_' || ch == ':' || ch == '-');
-            let key = &cursor.marked_input().ok_or(ParseError::ExpectedDataField)?;
+            let key = &cursor.marked_input().ok_or(ParseError::ExpectedNodeField)?;
 
             // optional separator char
             let (sep, join) = match cursor.pop() {
                 Some(',') => (Some(","), Some(",")),
                 Some(';') => (Some(";"), Some(";")),
-                Some('>') => (None, Some(" ")),
+                Some('>') => (None, Some(" ")), // TODO: shouldn't this be the default? Do we really need it?
                 Some('|') => (None, Some("\n")),
                 Some('*') => (Some("\n"), Some("\n")),
                 Some(x) if x.is_whitespace() => (None, None),
@@ -96,11 +109,31 @@ where
 
             // optional value
             let value = cursor.rest_of_line(); // value is NOT trimmed
-            Ok(LineData::Data { key, value, sep, join })
+            Ok(LineData::Node {
+                key,
+                value,
+                sep,
+                join,
+            })
         }
         Some(' ') => {
             let value = cursor.rest_of_line();
-            Ok(LineData::Value { value })
+            Ok(LineData::Continuation { value })
+        }
+        Some('+') => {
+            // required key name
+            cursor.mark();
+            cursor.pop_while(|ch| ch.is_alphanumeric() || ch == '_' || ch == ':' || ch == '-');
+            let key = &cursor
+                .marked_input()
+                .ok_or(ParseError::ExpectedAttributeKey)?;
+
+            // skip whitespace
+            cursor.pop_while(char::is_whitespace);
+
+            // optional value
+            let value = cursor.rest_of_line(); // value is NOT trimmed
+            Ok(LineData::Attribute { key, value })
         }
         Some('#') => {
             let comment = cursor.rest_of_line();
@@ -124,6 +157,11 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
     let mut current_sep: Option<&'a str> = None;
     let mut current_join: Option<&'a str> = None;
     let mut current_values: Vec<&'a str> = vec![];
+    let mut current_attributes: HashMap<&'a str, Option<&'a str>> = Default::default();
+    let mut current_attribute: Option<&'a str> = None;
+
+    // TODO: finish current memo, maybe as part of ParsingContext
+    // fn ctx.finish(self) -> Option<Memo>;
 
     for line in input.lines() {
         match parse_line(line) {
@@ -136,14 +174,22 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
                     if let Some(key) = current_key.take() {
                         let join_str = current_sep.unwrap_or(" ");
                         let value = current_values.split_off(0).join(join_str).to_string();
+                        // TODO: add Attributes to each value
                         memo.insert(key, value);
                     };
                     memos.push(memo);
                 }
                 current_sep = None;
                 current_join = None;
+                current_attributes = Default::default();
+                current_attribute = None;
             }
-            Ok(LineData::Data { key, value, sep, join }) => {
+            Ok(LineData::Node {
+                key,
+                value,
+                sep,
+                join,
+            }) => {
                 /* start new data field */
                 if current_memo.is_none() {
                     return Err(ParseError::ExpectedMemo);
@@ -169,6 +215,7 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
                             });
                         }
                     }
+                    // TODO: add attributes to all values
                 };
                 if let Some(value) = value {
                     current_values.push(value);
@@ -176,7 +223,11 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
                 current_sep = sep;
                 current_join = join;
             }
-            Ok(LineData::Value { value }) => {
+            Ok(LineData::Attribute {key, value }) => {
+                /* add attribute */
+                current_attributes.insert(key, value);
+            },
+            Ok(LineData::Continuation { value }) => {
                 /* add value */
                 current_values.push(value.unwrap_or_default());
             }
@@ -267,10 +318,10 @@ mod test_parser {
     #[test]
     fn test_parse_data_line() {
         let test_cases = [
-            (".", Err(ParseError::ExpectedDataField)),
+            (".", Err(ParseError::ExpectedNodeField)),
             (
                 ".author",
-                Ok(LineData::Data {
+                Ok(LineData::Node {
                     key: "author",
                     value: None,
                     sep: None,
@@ -279,7 +330,7 @@ mod test_parser {
             ),
             (
                 ".author   ",
-                Ok(LineData::Data {
+                Ok(LineData::Node {
                     key: "author",
                     value: None,
                     sep: None,
@@ -288,7 +339,7 @@ mod test_parser {
             ),
             (
                 ".author J.R.R. Tolkien",
-                Ok(LineData::Data {
+                Ok(LineData::Node {
                     key: "author",
                     value: Some("J.R.R. Tolkien"),
                     sep: None,
@@ -297,7 +348,7 @@ mod test_parser {
             ),
             (
                 ".author J.R.R. Tolkien   ", // keep trailing space for values
-                Ok(LineData::Data {
+                Ok(LineData::Node {
                     key: "author",
                     value: Some("J.R.R. Tolkien   "),
                     sep: None,
@@ -306,22 +357,22 @@ mod test_parser {
             ),
             (
                 ".opening>",
-                Ok(LineData::Data {
+                Ok(LineData::Node {
                     key: "opening",
                     value: None,
                     sep: None,
                     join: Some(" "),
-                })
+                }),
             ),
             (
                 ".poem|",
-                Ok(LineData::Data {
+                Ok(LineData::Node {
                     key: "poem",
                     value: None,
                     sep: None,
                     join: Some("\n"),
-                })
-            )
+                }),
+            ),
         ];
 
         for (input, expected) in test_cases.iter() {
@@ -332,11 +383,11 @@ mod test_parser {
     #[test]
     fn test_parse_value_line() {
         let test_cases = [
-            (" ", Ok(LineData::Value { value: None })),
-            ("   ", Ok(LineData::Value { value: Some("  ") })),
+            (" ", Ok(LineData::Continuation { value: None })),
+            ("   ", Ok(LineData::Continuation { value: Some("  ") })),
             (
                 " When Mr. Bilbo Baggins of Bag End...",
-                Ok(LineData::Value {
+                Ok(LineData::Continuation {
                     value: Some("When Mr. Bilbo Baggins of Bag End..."),
                 }),
             ),
@@ -383,7 +434,6 @@ mod test_parser {
 
     #[test]
     fn test_parse_memo() {
-
         let run_tests = |cases| {
             let mut last_memo = None;
             for case in cases {
@@ -396,22 +446,22 @@ mod test_parser {
             }
         };
 
-        let split_values = vec!(
+        let split_values = vec![
             "@case\n.color red\n.color blue\n.color green",
             "@case\n.color, red, blue, green",
-            "@case\n.color, red, blue\n.color green", 
+            "@case\n.color, red, blue\n.color green",
             "@case\n.color*\n red\n blue\n green",
             "@case\n.color; red; blue; green",
             "@case\n.color; red  ;  blue  ;  green",
             "@case\n.color, red\n blue\n green",
             "@case\n.color, red,,\n ,,blue\n green",
-        );
+        ];
 
-        let join_lines = vec!(
+        let join_lines = vec![
             "@case\n.doc In a hole in the ground there lived a hobbit.",
             "@case\n.doc> In a hole\n in the ground\n there lived a hobbit.",
             "@case\n.doc|\n In a hole in the ground there lived a hobbit.",
-        );
+        ];
 
         run_tests(split_values);
         run_tests(join_lines);

@@ -49,6 +49,17 @@ Or should the qualifier be part of the value itself?
     ]
 ```
 
+If it was part of the value, then we would need to assign the qualifier to all values of a multi-value field:
+```
+.name:en, hydrogen, whatever
+
+# equivalent to:
+.name:en hydrogen
+.name:en whatever
+```
+
+
+
 ## Implement Syntax Highlighting for Visual Studio Code
 
 **Request**: Implement a simple syntax highlighting for VSCode for .mr files
@@ -57,6 +68,59 @@ Or should the qualifier be part of the value itself?
 
 Attributes are currently just an idea and not yet supported.
 
+They are additional meta data for each key/value pair. One possible use is information about the source of the information:
+
+    .density 7.874
+    +source wikipedia
+    +date 2023-06-27
+    .name iron
+    +lang en
+    .name Eisen
+    +lang de
+
+Attributes are separate entities and stop the parsing of a value:
+
+    .recipe>
+     do this, then that
+     and finally that
+    +date 2023-06-27
+    +source Wikipedia
+     this line belongs to the +source attribute!
+
+Therefore, this notation does not make sense:
+
+     .recipe>
+    +date 2023-06-27
+      do this, then that
+      and finally that
+      this line and the two above belong the the date attribute, not to the recipe!
+
+
+While this one makes sense:
+
+    .recipe>
+      do this, then that
+      and finally that
+      and it is clear that this line belongs to the others.
+    +date 2023-06-27
+
+
+Inline attributes would be nice, but will not be supported yet:
+
+    .ingredients*
+     pasta         |+qty 500 g
+     tomatoes      |+qty 2
+     olive oil     |+qty 1 bottle
+
+
+It is possible to define multiple values in one data entry using the asterisk (*), comma (,) or semicolon (;) notation. In this case, the attributes defined later on should belong to all values defined before:
+
+    .ingredients*
+     pasta
+     tomatoes
+     olive oil
+    +source wikipedia
+    +date 2023-06-27
 
 
 # DONE
