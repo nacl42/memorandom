@@ -1,0 +1,52 @@
+# sample memo file
+# not under version control
+
+@mr:tpl basic
+.content {{ $title }} - {{ slogan }}
+
+@language rust
+.url https://www.rust-lang.org/
+.slogan A language empowering everyone to build reliable and efficient software.
+.sample|
+ fn main() {
+     println!("Hello, World!");
+ }
+.origin 2015
+.creator Graydon Hoare
+
+
+@language python
+.url https://www.python.org/
+.slogan Python is a programming language that lets you work quickly and integrate systems more effectively.
+.sample|
+ def fib(n):
+     a, b = 0, 1
+     while a < n:
+         print(a, end=' ')
+         a, b = b, a+b
+     print()
+ fib(1000)
+.creator Guido van Rossum
+.origin 1991
+
+@language C++
+.url https://isocpp.org/
+.creator Bjarne Stroustrop
+.origin 1985
+.sample|
+ #include <iostream>
+
+ int main() {
+     std::cout << "Hello World!";
+     return 0;
+ }
+
+@language Turbo Pascal
+.origin 1983
+.creator Anders Hejlsberg
+.sample|
+ program HelloWorld;
+ begin
+   WriteLn('Hello World')
+ end.
+
