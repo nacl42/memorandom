@@ -223,10 +223,10 @@ pub fn parse<'a>(input: &'a str) -> Result<Vec<Memo>, ParseError> {
                 current_sep = sep;
                 current_join = join;
             }
-            Ok(LineData::Attribute {key, value }) => {
+            Ok(LineData::Attribute { key, value }) => {
                 /* add attribute */
                 current_attributes.insert(key, value);
-            },
+            }
             Ok(LineData::Continuation { value }) => {
                 /* add value */
                 current_values.push(value.unwrap_or_default());
@@ -389,6 +389,30 @@ mod test_parser {
                 " When Mr. Bilbo Baggins of Bag End...",
                 Ok(LineData::Continuation {
                     value: Some("When Mr. Bilbo Baggins of Bag End..."),
+                }),
+            ),
+        ];
+
+        for (input, expected) in test_cases.iter() {
+            assert_eq!(parse_line(*input), *expected);
+        }
+    }
+
+    #[test]
+    fn test_parse_attribute_line() {
+        let test_cases = [
+            (
+                "+foo",
+                Ok(LineData::Attribute {
+                    key: "foo",
+                    value: None,
+                }),
+            ),
+            (
+                "+foo bar",
+                Ok(LineData::Attribute {
+                    key: "foo",
+                    value: Some("bar"),
                 }),
             ),
         ];

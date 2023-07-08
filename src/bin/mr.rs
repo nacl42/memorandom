@@ -1,4 +1,4 @@
-use memorandom:: {Memo, parse_line, parse};
+use memorandom:: {Memo, parse};
 
 const RECIPE: &str = r"
 @recipe Spaghetti Napoli

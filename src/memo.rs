@@ -33,6 +33,18 @@ impl Memo {
         }
     }
 
+    pub fn title(&self) -> String {
+        self.title.to_string()
+    }
+
+    pub fn collection(&self) -> String {
+        self.collection.clone()
+    }
+
+    pub fn data(&self) -> &MultiMap<Key, Value> {
+        &self.data
+    }
+
     pub fn insert<K, V>(&mut self, key: K, value: V)
     where
         K: Into<Key>,

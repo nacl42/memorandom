@@ -1,6 +1,18 @@
 
 # TODO
 
+- Read content from file and parse real .mr files
+  => specify filename on command line
+
+- Actually use data by integrating a template mechanism.
+  => test template mechanism ASAP
+  => multimap access does not work. Implement test map with Index trait, returning the list of items
+     data['slogan'][0]
+
+- Rewrite parser to have a proper Context instead of several variables.
+- Skip attributes for now? Or parse them anyway?
+
+
 ## Support Qualifiers for key names
 
 **Request**:

@@ -12,3 +12,4 @@ default-bin = "mr"
 
 [dependencies]
 multimap = "0.9.0"
+
