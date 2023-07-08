@@ -1,37 +1,9 @@
 use memorandom:: {Memo, parse};
 
-const RECIPE: &str = r"
-@recipe Spaghetti Napoli
-.ingredient spaghetti
-.ingredient onion
-.ingredient tomatoes
-.ingredient, oregano, basil
-.ingredient; salt; pepper
- patience; whatever
-.ingredient olive oil
-.howto,
- put the spaghetti into a pot of salted, boiling water,
- don't forget to stir from time to time,,, and
- so on
-.ingredient*
- pasta (500g)
- noodles (same as pasta)
- oregano
-.tested-by,
- Alice, Bob
-~
-";
-
 fn main() {
-    let memo = Memo::new("book", "The Lord of the Rings")
-        .with("author", "J.R.R. Tolkien")
-        .with("language", "English")
-        .with_many("character", ["Bilbo", "Samwise", "Gandalf"])
-        .with("character", "Aragon")
-        .with_many("genre", ["high fantasy", "adventure"]);
-
-    println!("{}", memo);
-
-    let result = parse(RECIPE);
+    let args: Vec<String> = std::env::args().collect();
+    let file_path = &args.get(1).expect("expected file name of .mr file");
+    let input = std::fs::read_to_string(file_path).expect("failed to read .mr file");
+    let result = parse(&input);
     println!("{:#?}", result);
 }
