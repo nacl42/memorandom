@@ -1,6 +1,36 @@
 
 # TODO
 
+- Convert data to json...?
+
+    @book foo
+    .author bar
+    .keywords, drama, modern
+
+    compact notation:
+
+    { "$schema": "book", "$id": "foo", "author": "bar", "keywords": ["drama", "modern"]}
+
+    or verbose notation:
+
+    { "$schema": "book", "$id": "foo",
+      [ {"author", { "text": "bar", "attr": {}} }
+        {"keywords", { "text": "drama", "attr": {}}},
+        {"keywords", { "text": "modern", "atr": {}}}]}
+
+    (skip 'attr' if not available)
+
+Idea: Serialize map like structure either as single value or as list
+
+  "one"  or ["one", "two"]
+
+  Have "$id" and "$schema" as key as well.
+
+  "$schema": "book",
+  "$id": "The Book of ..."
+  "author": "..."
+  "keywords": ["drama", "modern"],
+
 - Actually use data by integrating a template mechanism.
   => custom format
   @{{$type}} {{$label}} -- {{slogan}} ({keyword* | join ',' }) 

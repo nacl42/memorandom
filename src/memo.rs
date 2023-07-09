@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter};
+use serde_derive::{Serialize};
 
 use multimap::MultiMap;
 
@@ -13,7 +14,7 @@ pub type Value = String;
 // TODO: Value could be value with attributes
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Memo {
     collection: Key,            // a schema
     title: Value,               // an id
